@@ -1,0 +1,298 @@
+-- -------------------------------------------------
+
+Job Run Data (SQL Server)
+
+-- -------------------------------------------------
+
+select "Job Name", "Job Type", "User", "Role", "App Server", "Status", "Start Time", "End Time"
+-- "Number of Targets" + "Number of Component Targets" as "Number of Targets" 
+from
+( SELECT
+  (SELECT name
+  FROM job
+  WHERE job_id          = job_run.job_id
+  AND is_latest_version = 1
+  ) "Job Name",
+ (SELECT name
+  FROM object_type
+  WHERE object_type_id =
+    (SELECT object_type_id
+    FROM job
+    WHERE job_id          = job_run.job_id
+    AND is_latest_version = 1
+    )
+  ) "Job Type",
+  ( SELECT name FROM bluser WHERE user_id = job_run.user_id
+  ) "User",
+  ( SELECT name FROM blrole WHERE role_id = job_run.role_id
+  ) "Role",
+  (SELECT display_name
+  FROM application_server
+  WHERE application_server_id = job_run.application_server_id
+  ) "App Server",
+       start_time "Start Time" ,
+  (SELECT name
+  FROM progress_status
+  WHERE progress_status_id = job_run.progress_status_id
+  ) "Status",
+                END_TIME "End Time",
+                (
+                                select count(distinct jrd.device_id) from job_result_device jrd, job_result jres
+                                where jrd.result_id = jres.result_id and
+                                jres.job_run_id = job_run.job_run_id
+                ) "Number of Targets",
+                (
+                                select count(distinct c.device_id) from Component c, job_result jr, job_result_Component jrc
+                                where jrc.result_id = jr.result_id and
+                                jrc.Component_id = c.Component_id and
+                                jr.job_run_id = job_run.job_run_id
+                ) "Number of Component Targets"
+FROM job_run
+WHERE job_run.START_TIME BETWEEN '2020-02-21 00:01:01' and '2020-02-23 23:59:00'
+AND (SELECT name
+  FROM job
+  WHERE job_id          = job_run.job_id
+  AND is_latest_version = 1 ) NOT IN ( 'simulate', 'stage', 'apply' )
+) as ssss
+ORDER BY "Start Time" DESC
+ 
+ 
+WITH temp1 (group_id, path) AS  
+( 
+            select group_id, cast(name as varchar(1000)) 
+               from blgroup bg1 
+               where parent_group_id = 0  
+               UNION ALL  
+          select bg1.group_id, 
+                     cast(bg2.path + '/' + cast(bg1.name as varchar(100)) as varchar(1000)) 
+               from blgroup bg1 
+               inner join temp1 bg2 on bg1.parent_group_id = bg2.group_id  
+) 
+select temp1.path,j.name,jr.start_time ,
+                      datediff( S , min(jrd.start_time) ,jr.start_time )*86400,
+              --,to_char(min(jrd.start_time),'YYYY-MM-DD HH24:MI:SS')
+              min(jrd.start_time)
+              from job_run jr  
+join job_result jrr on jr.job_run_id = jrr.job_run_id  
+join job_result_device jrd on jrr.result_id = jrd.result_id  
+join job j on jr.job_id = j.job_id and jr.job_version_id = j.job_version_id 
+join temp1 on j.group_id = temp1.group_id  
+where jr.START_TIME BETWEEN '2020-02-21 00:01:01' and '2020-02-24 23:59:00'
+--to_date('2020-02-21 00:00:00','YYYY-MM-DD HH24:MI:SS') and to_date('2020-02-24 00:00:00','YYYY-MM-DD HH24:MI:SS') 
+group by temp1.path,j.name,jr.start_time 
+union 
+select temp1.path,j.name,jr.start_time ,
+                      --to_char(jr.start_time,'YYYY-MM-DD HH24:MI:SS'),
+                      datediff( S , min(jrc.start_time) ,jr.start_time )*86400 ,
+                      --round((min(jrc.start_time) - jr.start_time)*86400),
+                      min(jrc.start_time)
+                      --to_char(min(jrc.start_time),'YYYY-MM-DD HH24:MI:SS') 
+              from job_run jr  
+join job_result jrr on jr.job_run_id = jrr.job_run_id  
+join job_result_component jrc on jrr.result_id = jrc.result_id  
+join job j on jr.job_id = j.job_id and jr.job_version_id = j.job_version_id 
+join temp1 on j.group_id = temp1.group_id  
+where --jr.START_TIME BETWEEN to_date('2020-02-13 00:00:00','YYYY-MM-DD HH24:MI:SS') and to_date('2020-02-16 00:00:00','YYYY-MM-DD HH24:MI:SS') 
+              jr.START_TIME BETWEEN '2020-02-13 00:01:01' and '2020-02-16 23:59:00'
+group by temp1.path,j.name,jr.start_time
+ 
+-- -------------------------------------------------
+
+Job Run data (Oracle)
+
+-- -------------------------------------------------
+ 
+ALTER SESSION SET NLS_DATE_FORMAT='dd/mm/yyyy hh24:mi:ss';
+select "Job Name", "Job Type", "User", "Role", "App Server", "Status", "Start Time", "End Time", "Number of Targets" + "Number of Component Targets" as "Number of Targets"  from
+(
+SELECT
+  (SELECT name
+  FROM job
+  WHERE job_id          = job_run.job_id
+  AND is_latest_version = 1
+  ) "Job Name",
+  (SELECT name
+  FROM object_type
+  WHERE object_type_id =
+    (SELECT object_type_id
+    FROM job
+    WHERE job_id          = job_run.job_id
+    AND is_latest_version = 1
+    )
+  ) "Job Type",
+  ( SELECT name FROM bluser WHERE user_id = job_run.user_id
+  ) "User",
+  ( SELECT name FROM blrole WHERE role_id = job_run.role_id
+  ) "Role",
+  (SELECT display_name
+  FROM application_server
+  WHERE application_server_id = job_run.application_server_id
+  ) "App Server",
+  TO_CHAR(start_time,'MM/DD/YYYY HH24:MI:SS') "Start Time",
+  (SELECT name
+  FROM progress_status
+  WHERE progress_status_id = job_run.progress_status_id
+  ) "Status",
+                TO_CHAR(END_TIME,'MM/DD/YYYY HH24:MI:SS') "End Time",
+                (
+                                select count(distinct jrd.device_id) from job_result_device jrd, job_result jres
+                                where jrd.result_id = jres.result_id and
+                                jres.job_run_id = job_run.job_run_id
+                ) "Number of Targets",
+                (
+                                select count(distinct c.device_id) from Component c, job_result jr, job_result_Component jrc
+                                where jrc.result_id = jr.result_id and
+                                jrc.Component_id = c.Component_id and
+                                jr.job_run_id = job_run.job_run_id
+                ) "Number of Component Targets"
+FROM job_run
+WHERE 
+--progress_status_id           IN ( 3, 4, 7 )
+-- AND start_time            > SYSDATE - 20
+--and 
+job_run.START_TIME BETWEEN '21/02/2020 00:00:00' and '23/02/2020 12:00:00'
+AND (SELECT name
+  FROM job
+  WHERE job_id          = job_run.job_id
+  AND is_latest_version = 1 ) NOT IN ( 'simulate', 'stage', 'apply' )
+ORDER BY start_time DESC
+);
+ 
+-- -------------------------------------------------
+
+WorkItemThread Delay (Oracle)
+ 
+-- -------------------------------------------------
+
+WITH temp1 (group_id, path) AS  
+(  
+            select group_id, cast(name as varchar(1000))  
+               from blgroup bg1  
+               where parent_group_id = 0  
+               UNION ALL  
+          select bg1.group_id,  
+                     cast(bg2.path || '/' || cast(bg1.name as varchar(100)) as varchar(1000))  
+               from blgroup bg1  
+               inner join temp1 bg2 on bg1.parent_group_id = bg2.group_id  
+)  
+select temp1.path,j.name,to_char(jr.start_time,'YYYY-MM-DD HH24:MI:SS'),round((min(jrd.start_time) - jr.start_time)*86400),to_char(min(jrd.start_time),'YYYY-MM-DD HH24:MI:SS') from job_run jr  
+join job_result jrr on jr.job_run_id = jrr.job_run_id  
+join job_result_device jrd on jrr.result_id = jrd.result_id  
+join job j on jr.job_id = j.job_id and jr.job_version_id = j.job_version_id  
+join temp1 on j.group_id = temp1.group_id  
+where jr.START_TIME BETWEEN to_date('2020-02-21 00:00:00','YYYY-MM-DD HH24:MI:SS') and to_date('2020-02-24 00:00:00','YYYY-MM-DD HH24:MI:SS')  
+group by temp1.path,j.name,jr.start_time  
+union  
+select temp1.path,j.name,to_char(jr.start_time,'YYYY-MM-DD HH24:MI:SS'),round((min(jrc.start_time) - jr.start_time)*86400),to_char(min(jrc.start_time),'YYYY-MM-DD HH24:MI:SS') from job_run jr  
+join job_result jrr on jr.job_run_id = jrr.job_run_id  
+join job_result_component jrc on jrr.result_id = jrc.result_id  
+join job j on jr.job_id = j.job_id and jr.job_version_id = j.job_version_id  
+join temp1 on j.group_id = temp1.group_id  
+where jr.START_TIME BETWEEN to_date('2020-09-15 00:00:00','YYYY-MM-DD HH24:MI:SS') and to_date('2020-09-30 00:00:00','YYYY-MM-DD HH24:MI:SS')  
+group by temp1.path,j.name,jr.start_time;  
+  
+-- -------------------------------------------------
+
+ Job Run Data (SQL Server)
+
+-- -------------------------------------------------
+
+select "Job Name", "Job Type", "User", "Role", "App Server", "Status", "Start Time", "End Time"
+-- "Number of Targets" + "Number of Component Targets" as "Number of Targets" 
+from
+( SELECT
+  (SELECT name
+  FROM job
+  WHERE job_id          = job_run.job_id
+  AND is_latest_version = 1
+  ) "Job Name",
+ (SELECT name
+  FROM object_type
+  WHERE object_type_id =
+    (SELECT object_type_id
+    FROM job
+    WHERE job_id          = job_run.job_id
+    AND is_latest_version = 1
+    )
+  ) "Job Type",
+  ( SELECT name FROM bluser WHERE user_id = job_run.user_id
+  ) "User",
+  ( SELECT name FROM blrole WHERE role_id = job_run.role_id
+  ) "Role",
+  (SELECT display_name
+  FROM application_server
+  WHERE application_server_id = job_run.application_server_id
+  ) "App Server",
+       start_time "Start Time" ,
+  (SELECT name
+  FROM progress_status
+  WHERE progress_status_id = job_run.progress_status_id
+  ) "Status",
+                END_TIME "End Time",
+                (
+                                select count(distinct jrd.device_id) from job_result_device jrd, job_result jres
+                                where jrd.result_id = jres.result_id and
+                                jres.job_run_id = job_run.job_run_id
+                ) "Number of Targets",
+                (
+                                select count(distinct c.device_id) from Component c, job_result jr, job_result_Component jrc
+                                where jrc.result_id = jr.result_id and
+                                jrc.Component_id = c.Component_id and
+                                jr.job_run_id = job_run.job_run_id
+                ) "Number of Component Targets"
+FROM job_run
+WHERE job_run.START_TIME BETWEEN '2020-02-21 00:01:01' and '2020-02-23 23:59:00'
+AND (SELECT name
+  FROM job
+  WHERE job_id          = job_run.job_id
+  AND is_latest_version = 1 ) NOT IN ( 'simulate', 'stage', 'apply' )
+) as ssss
+ORDER BY "Start Time" DESC
+ 
+-- -------------------------------------------------
+
+WorkItemThread Delay (SQL Server)
+
+-- -------------------------------------------------
+ 
+WITH temp1 (group_id, path) AS  
+( 
+            select group_id, cast(name as varchar(1000)) 
+               from blgroup bg1 
+               where parent_group_id = 0  
+               UNION ALL  
+          select bg1.group_id, 
+                     cast(bg2.path + '/' + cast(bg1.name as varchar(100)) as varchar(1000)) 
+               from blgroup bg1 
+               inner join temp1 bg2 on bg1.parent_group_id = bg2.group_id  
+) 
+select temp1.path,j.name,jr.start_time ,
+                      datediff( S , min(jrd.start_time) ,jr.start_time )*86400,
+              --,to_char(min(jrd.start_time),'YYYY-MM-DD HH24:MI:SS')
+              min(jrd.start_time)
+              from job_run jr  
+join job_result jrr on jr.job_run_id = jrr.job_run_id  
+join job_result_device jrd on jrr.result_id = jrd.result_id  
+join job j on jr.job_id = j.job_id and jr.job_version_id = j.job_version_id 
+join temp1 on j.group_id = temp1.group_id  
+where jr.START_TIME BETWEEN '2020-02-21 00:01:01' and '2020-02-24 23:59:00'
+--to_date('2020-02-21 00:00:00','YYYY-MM-DD HH24:MI:SS') and to_date('2020-02-24 00:00:00','YYYY-MM-DD HH24:MI:SS') 
+group by temp1.path,j.name,jr.start_time 
+union 
+select temp1.path,j.name,jr.start_time ,
+                      --to_char(jr.start_time,'YYYY-MM-DD HH24:MI:SS'),
+                      datediff( S , min(jrc.start_time) ,jr.start_time )*86400 ,
+                      --round((min(jrc.start_time) - jr.start_time)*86400),
+                      min(jrc.start_time)
+                      --to_char(min(jrc.start_time),'YYYY-MM-DD HH24:MI:SS') 
+              from job_run jr  
+join job_result jrr on jr.job_run_id = jrr.job_run_id  
+join job_result_component jrc on jrr.result_id = jrc.result_id  
+join job j on jr.job_id = j.job_id and jr.job_version_id = j.job_version_id 
+join temp1 on j.group_id = temp1.group_id  
+where --jr.START_TIME BETWEEN to_date('2020-02-13 00:00:00','YYYY-MM-DD HH24:MI:SS') and to_date('2020-02-16 00:00:00','YYYY-MM-DD HH24:MI:SS') 
+              jr.START_TIME BETWEEN '2020-02-13 00:01:01' and '2020-02-16 23:59:00'
+group by temp1.path,j.name,jr.start_time
+ 
+
+-- -------------------------------------------------
