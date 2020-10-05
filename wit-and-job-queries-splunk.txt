@@ -1,0 +1,33 @@
+Used WorkItemThreads (1min interval, 1000 WITs)
+
+index=bladelogic-index env=PROD sourcetype="bladelogic.JobServer" "Memory Monitor"
+| stats values(Used_WIT) as Used_WIT by _time host
+| bin span=1m _time 
+| stats sum(Used_WIT) as TotalUsedWIT by _time
+| timechart span=15m max(eval(round((TotalUsedWIT/1000)*100,1))) as MaxPercentWIT
+ 
+Running Jobs (1 min interval, 400 Jobs peak)
+
+index=bladelogic-index env=PROD sourcetype="bladelogic.metrics" NOT host="xxxxxx" function=Job
+| dedup DateTime,host 
+| timechart span=1m sum(JobMgrNumRunningJobs) as TotalRunningJobs
+| eval PercentJobMgr=(TotalRunningJobs/400)*100 
+| eval PercentJobMgr=round(PercentJobMgr,1)
+| timechart span=30m max(PercentJobMgr)
+ 
+Peak Utilization of Jobs, WorkItemThreads: 
+
+index=bladelogic-index env=PROD (sourcetype="bladelogic.JobServer" "Memory Monitor" ) OR (sourcetype="bladelogic.metrics" function=Job )
+| stats values(Used_WIT) as Used_WIT values(JobMgrNumRunningJobs) as AllRunningJobs by _time host
+| bin span=1m _time 
+| stats sum(Used_WIT) as TotalUsedWIT sum(AllRunningJobs) as TotalRunningJobs by _time
+| stats max(eval(round((TotalUsedWIT/1000)*100,1))) as maxPercentWIT max(eval(round((TotalRunningJobs/400)*100,1))) as maxPercentJobMgr
+| where maxPercentWIT>80 AND maxPercentJobMgr>80
+ 
+index=bladelogic-index env=PROD (sourcetype="bladelogic.JobServer" "Memory Monitor" ) OR (sourcetype="bladelogic.metrics" function=Job )
+| stats values(Used_WIT) as Used_WIT values(JobMgrNumRunningJobs) as TotalRunningJobs by _time host
+| bin span=1m _time 
+| stats sum(Used_WIT) as TotalUsedWIT sum(TotalRunningJobs) as TotalRunningJobs by _time
+| stats max(eval(round((TotalUsedWIT/2500)*100,1))) as maxPercentWIT max(eval(round((TotalRunningJobs/1600)*100,1))) as maxPercentJobMgr
+| where maxPercentWIT>80 AND maxPercentJobMgr>80
+
