@@ -1,0 +1,31 @@
+//
+// (C) BMC Software 2020, wit-capacity-1-week-splunk.txt
+//
+// This is an example SumoLogic query to evaluate a range of appserver metrics, and to compare a week's worth
+//   of WorkItemThread peaks to assess whether peak WorkItem capacity is being reached, and whether more
+//   capacity is needed.  If peak isn't reached and maintained for > 15 minutes, the environment is 
+//   assumed generally to have a lower workload than full capacity.  There may be other performance 
+//   factors impacting capacity, but this should hold in a healthy environment.
+//
+// Sean Berry, BMC
+//
+_collector="Your-Collector-Name" "Memory Monitor"
+| parse ",DB Job-Connection-Pool: */*/*/" as db_job_1,db_job_2,db_job_3
+| parse "Host/Appserver/Version: */*/*" as host,appserver,version
+| parse "DB General-Connection-Pool: */" as db_1
+| parse ",Used File Descriptors: *," as used_fd
+| parse "Used Client Connections: */300," as used_client_conn
+// this extracts the # of work item threads in use
+| parse ",Used Work Item Threads: */100," as used_wit
+| timeslice 5m 
+// find the peak in 5 minutes
+| max(used_wit) as maxwit,
+ max(used_client_conn) as max_cc,
+  max(db_1) as max_db1 
+  by _timeslice, appserver
+// add up all the WIT in use across the environment, count the number of appservers shown in the logs available
+| sum (maxwit) as env_wit, count_distinct (appserver) as appserver_count   by _timeslice
+// Divide the total # of work item threads in use over the number of appservers in use, express as a percentage
+| env_wit / appserver_count / 100  as wit_pct | fields wit_pct,_timeslice
+// Show the same time frames per day on the same graph
+| compare with timeshift 1d 7
