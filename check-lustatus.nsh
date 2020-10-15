@@ -10,7 +10,6 @@ else
 	"/usr/bin/zonename not found, running on something other than Solaris?"
 fi
 
-ZONENAME=global
 if [ $ZONENAME = "global" ]; then
 	echo "LiveUpgrade Status:" 
 	lustatus
