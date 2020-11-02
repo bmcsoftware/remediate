@@ -90,7 +90,7 @@ checkObjectsExist()
     done
 }
 
-parentJobGroup="/BMC Maintenance/${EPOCHSECONDS}"
+parentJobGroup="/BMC Maintenance"
 cleanupJobGroup="${parentJobGroup}/Database Cleanup Jobs"
 memberJobGroup="${cleanupJobGroup}/Member Jobs"
 
