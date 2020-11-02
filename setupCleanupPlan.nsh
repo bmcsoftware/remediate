@@ -97,6 +97,8 @@ memberJobGroup="${cleanupJobGroup}/Member Jobs"
 cleanupScript="/BMC Maintenance/BSA Recommended Database Cleanup Script"
 defaultRetention=14
 defaultDuration=720
+runTime="$(date +%Y-%m-%d) 01:00:00"
+
 typeset -a jobTypes
 typeset -A executionMode
 typeset -A objType
@@ -180,7 +182,7 @@ blcli_storeenv nshJobKey
 blcli_execute BatchJob addMemberJobByJobKey ${dailyKey} ${nshJobKey}
 blcli_storeenv dailyKey
 
-blcli_execute Job addWeeklySchedule ${dailyKey} "$(date +%Y-%m-%d) 01:00:00" 63 1
+blcli_execute Job addWeeklySchedule ${dailyKey} "${runTime}" 63 1
 
 echo "Creating the Weekly Batch Job..."
 
@@ -199,5 +201,5 @@ for i in Retention CleanupDatabase HardDeleteAllSharedObjects FileServer
         blcli_storeenv weeklyKey
     fi
 done
-blcli_execute Job addWeeklySchedule ${weeklyKey} "$(date +%Y-%m-%d) 01:00:00" 64 1
+blcli_execute Job addWeeklySchedule ${weeklyKey} "${runTime}" 64 1
 
