@@ -16,7 +16,7 @@ dt = int(round(time.time() * 1000)) # microseconds?
 
 print ("Timestamp is: " + str(dt))
 
-# nexec MYAPPSERVER.bmc.com "tail -500 /opt/bmc/bladelogic/NSH/br/phx-bladepd-01-job1.log | grep 'Memory Monitor' | tail -1 | sed 's/^.*Used Work Item Threads: //' | sed 's/,.*$//' "
+# nexec MYAPPSERVER.bmc.com "tail -500 /opt/bmc/bladelogic/NSH/br/hostname-job1.log | grep 'Memory Monitor' | tail -1 | sed 's/^.*Used Work Item Threads: //' | sed 's/,.*$//' "
 
 for server in "YOUR-APP-SERVER", "YOUR-APP-SERVER-2", "YOUR-APP-SERVER-3":
     print("Server: " + server)
@@ -25,7 +25,7 @@ for server in "YOUR-APP-SERVER", "YOUR-APP-SERVER-2", "YOUR-APP-SERVER-3":
         print("File: " + file)
         line = subprocess.run(["/bin/nsh", "/root/get_last.nsh", server, file], stdout=subprocess.PIPE)
 
-        #line = os.system("nsh /root/get_last.nsh phx-bladepd-01.bmc.com /opt/bmc/bladelogic/NSH/br/phx-bladepd-01-job1.log")
+        #line = os.system("nsh /root/get_last.nsh hostname /opt/bmc/bladelogic/NSH/br/phx-bladepd-01-job1.log")
         # [04 Sep 2020 16:07:47,208] [Scheduled-System-Tasks-Thread-19] [INFO] [System:System:] [Memory Monitor] Total JVM (B): 4524605440,
         # Free JVM (B): 3791717008,Used JVM (B): 732888432,VSize (B): 18146349056,RSS (B): 7434936320,Used File Descriptors: 311,
         # Used Work Item Threads: 0/100,Used NSH Proxy Threads: 0/150,Used Client Connections: 0/200,
